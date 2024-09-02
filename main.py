@@ -12,7 +12,6 @@ import os
 from botocore.exceptions import ClientError
 # Define AWS settings
 REGION = "ap-northeast-1"
-S3_BUCKET = "bucket_for_app_01"
 
 SECRET_NAME = "openai_secret"
 
@@ -91,7 +90,8 @@ def write_record():
     pass
 
 def lambda_handler(event, context):
-    pass
+    bucket_name = event['Records'][0]['s3']['bucket']['name']
+    filename = event['Records'][0]['s3']['object']['key']
 
 # for local test
 if __name__ == '__main__':
