@@ -4,6 +4,7 @@ import uuid
 
 import boto3
 import openai
+from PIL import Image
 import pymongo
 
 # only local environment
@@ -30,9 +31,9 @@ BASE_PROMPT = [
     }
 ]
 
-def test_img_encoding_b64(img_path):
-    pass
-
+def test_img_encoding_b64(img_file) -> str:
+    data64 = base64.b64encode(img_file).decode("utf-8")
+    return data64
 
 def img_encoding_b64(img_path):
     pass
