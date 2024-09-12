@@ -1,14 +1,15 @@
 import base64
+import datetime
 import sys
 import uuid
 
 import boto3
 import openai
 from PIL import Image
-import pymongo
 
 # only local environment
 import os
+import local_settings
 
 from botocore.exceptions import ClientError
 # Define AWS settings
@@ -27,23 +28,18 @@ BASE_PROMPT = [
     },
     {
         "role": "system",
-        "content": "回答は':'をデリミタとして'title:comment'のフォーマットを遵守してください"
+        "content": "回答は'title:comment'のフォーマットを遵守してください"
     }
 ]
 
-def test_img_encoding_b64(img_file) -> str:
+def img_encoding_b64(img_file) -> str:
     data64 = base64.b64encode(img_file).decode("utf-8")
     return data64
 
-def img_encoding_b64(img_path):
-    pass
-
-
-def answer_request(imgdata64):
+def answer_request(imgdata64:str, ext:str):
     # ToDo:キー未定義エラー時の挙動について考えておく。
     # secret_strings = get_secret()
     # API_KEY = secret_strings["API_ACCESS_KEY"]
-    API_KEY = os.getenv('API_ACCESS_KEY')
 
     client = openai.OpenAI()
 
@@ -56,7 +52,7 @@ def answer_request(imgdata64):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{imgdata64}"
+                            "url": f"data:image/{ext};base64,{imgdata64}"
                         }
                     }
                 ]
@@ -87,8 +83,38 @@ def get_secret() -> dict:
         else:
             return {"result": "strings is not be string, check your secret environment variable"}
 
+def test_create_table():
+    dbclient = boto3.client('dynamodb', endpoint_url="http://localhost:8000")
+    TABLE_NAME = local_settings.TEST_TABLE_NAME
+
+    table = dbclient.create_table(
+        TableName=TABLE_NAME,
+        KeySchema=[
+            {"AttributeName": "id", "KeyType": "HASH"},
+            {"AttributeName": "created_date", "KeyType": "RANGE"}
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "id", "AttributeType": "S"},
+            {"AttributeName": "created_date", "AttributeType": "S"}
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+
+def test_write_record(title,comment,s3_path):
+    dbclient = boto3.client('dynamodb', endpoint_url="http://localhost:8000")
+    TABLE_NAME = local_settings.TEST_TABLE_NAME
+
+    dbclient.put_item(TableName=TABLE_NAME, Item={
+        "id": {"S": str(uuid.uuid4())},
+        "created_date": {"S": datetime.datetime.now().strftime("%Y-%m-%d")},
+        "title": {"S": title},
+        "comment": {"S": comment},
+        "path": {"S": s3_path}
+    })
+
 def write_record():
-    pass
+    dbclient = boto3.client('dynamodb')
+    table = dbclient.Table('')
 
 def lambda_handler(event, context):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
@@ -96,4 +122,11 @@ def lambda_handler(event, context):
 
 # for local test
 if __name__ == '__main__':
-    print('hello world')
+    filepath = os.path.join(os.getcwd(), 'img', 'my_robot.png')
+
+    # with open(filepath, 'rb') as f:
+    #     b64data = base64.b64encode(f.read()).decode("utf-8")
+    #
+    # answer_request(b64data, "png")
+
+    # test_create_table()
